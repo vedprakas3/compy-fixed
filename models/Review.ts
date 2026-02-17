@@ -1,8 +1,30 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 import { IReview } from '@/types';
 
+// Interface for Review instance methods
+export interface IReviewMethods {
+  hide(): Promise<IReview & Document>;
+  show(): Promise<IReview & Document>;
+  moderate(notes: string): Promise<IReview & Document>;
+}
+
+// Interface for Review static methods
+export interface IReviewStatics {
+  findByBooking(bookingId: string): any;
+  findByReviewee(revieweeId: string, filters?: any): any;
+  findByReviewer(reviewerId: string): any;
+  getAverageRating(revieweeId: string): Promise<{ average: number; count: number }>;
+  getRatingDistribution(revieweeId: string): Promise<{ 5: number; 4: number; 3: number; 2: number; 1: number }>;
+}
+
+// Document type with methods
+type ReviewDocument = IReview & Document & IReviewMethods;
+
+// Combined model type
+type ReviewModel = Model<ReviewDocument> & IReviewStatics;
+
 // Review Schema
-const ReviewSchema = new Schema<IReview & Document>({
+const ReviewSchema = new Schema<any, ReviewModel>({
   bookingId: {
     type: Schema.Types.ObjectId,
     ref: 'Booking',
@@ -159,6 +181,8 @@ ReviewSchema.methods.moderate = function(notes: string) {
   return this.save();
 };
 
-const Review = mongoose.models.Review || mongoose.model<IReview & Document>('Review', ReviewSchema);
+// Create or get the model with proper typing
+const Review: ReviewModel = (mongoose.models.Review as ReviewModel) || 
+  mongoose.model<ReviewDocument, ReviewModel>('Review', ReviewSchema);
 
 export default Review;

@@ -27,6 +27,9 @@ export interface IUser {
       country?: string;
       coordinates?: [number, number];
     };
+    interests?: string[];
+    personalityTraits?: string[];
+    languages?: string[];
   };
   verification: {
     email: boolean;
@@ -83,6 +86,9 @@ export interface ICompanion {
   userId: string;
   slug: string;
   status: CompanionStatus;
+  verification?: {
+    badge?: boolean;
+  };
   kyc: {
     status: KYCStatus;
     documents: IKYCDocument[];
@@ -115,6 +121,11 @@ export interface ICompanion {
     interests: string[];
     personalityTraits: string[];
     availabilityNotes?: string;
+    location?: {
+      city?: string;
+      state?: string;
+      country?: string;
+    };
   };
   settings: {
     autoAccept: boolean;

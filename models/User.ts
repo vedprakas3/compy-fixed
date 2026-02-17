@@ -1,5 +1,26 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 import { IUser, IPanicContact, IWalletTransaction } from '@/types';
+
+// Interface for User instance methods
+export interface IUserMethods {
+  addToWallet(amount: number, description: string, reference?: string): Promise<IUser & Document>;
+  blockUser(userId: string): Promise<IUser & Document>;
+  unblockUser(userId: string): Promise<IUser & Document>;
+  addToWishlist(companionId: string): Promise<IUser & Document>;
+  removeFromWishlist(companionId: string): Promise<IUser & Document>;
+}
+
+// Interface for User static methods
+export interface IUserStatics {
+  findByFirebaseUid(firebaseUid: string): Promise<any>;
+  findByEmail(email: string): Promise<any>;
+}
+
+// Document type with methods
+type UserDocument = IUser & Document & IUserMethods;
+
+// Combined model type
+type UserModel = Model<UserDocument> & IUserStatics;
 
 // Wallet Transaction Schema
 const WalletTransactionSchema = new Schema<IWalletTransaction>({
@@ -48,7 +69,7 @@ const PanicContactSchema = new Schema<IPanicContact>({
 });
 
 // User Schema
-const UserSchema = new Schema<IUser & Document>({
+const UserSchema = new Schema<any, UserModel>({
   firebaseUid: {
     type: String,
     required: true,
@@ -185,12 +206,12 @@ const UserSchema = new Schema<IUser & Document>({
 });
 
 // Virtual for full name
-UserSchema.virtual('fullName').get(function() {
+UserSchema.virtual('fullName').get(function(this: any) {
   return `${this.profile.firstName} ${this.profile.lastName}`;
 });
 
 // Virtual for age
-UserSchema.virtual('age').get(function() {
+UserSchema.virtual('age').get(function(this: any) {
   if (!this.profile.dateOfBirth) return null;
   const today = new Date();
   const birthDate = new Date(this.profile.dateOfBirth);
@@ -206,7 +227,7 @@ UserSchema.virtual('age').get(function() {
 UserSchema.index({ 'profile.firstName': 'text', 'profile.lastName': 'text', email: 'text' });
 
 // Pre-save middleware
-UserSchema.pre('save', function(next) {
+UserSchema.pre('save', function(this: any, next) {
   if (this.isModified('email')) {
     this.email = this.email.toLowerCase().trim();
   }
@@ -260,6 +281,8 @@ UserSchema.methods.removeFromWishlist = function(companionId: string) {
   return this.save();
 };
 
-const User = mongoose.models.User || mongoose.model<IUser & Document>('User', UserSchema);
+// Create or get the model with proper typing
+const User: UserModel = (mongoose.models.User as UserModel) || 
+  mongoose.model<UserDocument, UserModel>('User', UserSchema);
 
 export default User;

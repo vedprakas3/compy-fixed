@@ -1,5 +1,32 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 import { IBooking, IReviewSummary } from '@/types';
+
+// Interface for Booking instance methods
+export interface IBookingMethods {
+  confirm(): Promise<IBooking & Document>;
+  start(): Promise<IBooking & Document>;
+  complete(): Promise<IBooking & Document>;
+  cancel(cancelledBy: string, reason: string, refundAmount?: number): Promise<IBooking & Document>;
+  markAsPaid(razorpayOrderId: string, razorpayPaymentId: string, razorpaySignature: string): Promise<IBooking & Document>;
+  releaseEscrow(): Promise<IBooking & Document>;
+  refund(): Promise<IBooking & Document>;
+  addUserReview(rating: number, comment: string): Promise<IBooking & Document>;
+  addCompanionReview(rating: number, comment: string): Promise<IBooking & Document>;
+}
+
+// Interface for Booking static methods
+export interface IBookingStatics {
+  findByBookingId(bookingId: string): Promise<any>;
+  findByUser(userId: string, filters?: any): Promise<any[]>;
+  findByCompanion(companionId: string, filters?: any): Promise<any[]>;
+  findOverlapping(companionId: string, startDateTime: Date, endDateTime: Date, excludeBookingId?: string): Promise<any[]>;
+}
+
+// Document type with methods
+type BookingDocument = IBooking & Document & IBookingMethods;
+
+// Combined model type
+type BookingModel = Model<BookingDocument> & IBookingStatics;
 
 // Review Summary Schema (embedded in booking)
 const ReviewSummarySchema = new Schema<IReviewSummary>({
@@ -20,7 +47,7 @@ const ReviewSummarySchema = new Schema<IReviewSummary>({
 }, { _id: false });
 
 // Booking Schema
-const BookingSchema = new Schema<IBooking & Document>({
+const BookingSchema = new Schema<any, BookingModel>({
   bookingId: {
     type: String,
     required: true,
@@ -204,18 +231,18 @@ BookingSchema.index({ 'dates.startDateTime': 1, 'dates.endDateTime': 1 });
 BookingSchema.index({ createdAt: -1 });
 
 // Virtual for checking if booking is upcoming
-BookingSchema.virtual('isUpcoming').get(function() {
+BookingSchema.virtual('isUpcoming').get(function(this: any) {
   return this.dates.startDateTime > new Date() && ['pending', 'confirmed'].includes(this.status);
 });
 
 // Virtual for checking if booking is ongoing
-BookingSchema.virtual('isOngoing').get(function() {
+BookingSchema.virtual('isOngoing').get(function(this: any) {
   const now = new Date();
   return now >= this.dates.startDateTime && now <= this.dates.endDateTime && this.status === 'in_progress';
 });
 
 // Virtual for checking if booking is past
-BookingSchema.virtual('isPast').get(function() {
+BookingSchema.virtual('isPast').get(function(this: any) {
   return this.dates.endDateTime < new Date() || ['completed', 'cancelled', 'refunded'].includes(this.status);
 });
 
@@ -343,6 +370,8 @@ BookingSchema.methods.addCompanionReview = function(rating: number, comment: str
   return this.save();
 };
 
-const Booking = mongoose.models.Booking || mongoose.model<IBooking & Document>('Booking', BookingSchema);
+// Create or get the model with proper typing
+const Booking: BookingModel = (mongoose.models.Booking as BookingModel) || 
+  mongoose.model<BookingDocument, BookingModel>('Booking', BookingSchema);
 
 export default Booking;

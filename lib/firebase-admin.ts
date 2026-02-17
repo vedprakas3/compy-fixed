@@ -1,21 +1,52 @@
 import admin from 'firebase-admin';
 
-const serviceAccount = {
-  projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
-  privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-};
+// Check if required environment variables are present
+const hasFirebaseConfig = 
+  process.env.FIREBASE_ADMIN_PROJECT_ID &&
+  process.env.FIREBASE_ADMIN_PRIVATE_KEY &&
+  process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  });
+let auth: admin.auth.Auth;
+let firestore: admin.firestore.Firestore;
+let storage: admin.storage.Storage;
+
+if (hasFirebaseConfig) {
+  const serviceAccount = {
+    projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
+    privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+  };
+
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    });
+  }
+
+  auth = admin.auth();
+  firestore = admin.firestore();
+  storage = admin.storage();
+} else {
+  // Create mock implementations for build time
+  console.warn('Firebase Admin SDK not initialized - missing environment variables');
+  
+  const mockAuth = {
+    verifyIdToken: async () => { throw new Error('Firebase not configured'); },
+    getUser: async () => { throw new Error('Firebase not configured'); },
+    createCustomToken: async () => { throw new Error('Firebase not configured'); },
+    setCustomUserClaims: async () => { throw new Error('Firebase not configured'); },
+    deleteUser: async () => { throw new Error('Firebase not configured'); },
+    listUsers: async () => { throw new Error('Firebase not configured'); },
+  } as unknown as admin.auth.Auth;
+
+  const mockFirestore = {} as admin.firestore.Firestore;
+  const mockStorage = {} as admin.storage.Storage;
+
+  auth = mockAuth;
+  firestore = mockFirestore;
+  storage = mockStorage;
 }
-
-export const auth = admin.auth();
-export const firestore = admin.firestore();
-export const storage = admin.storage();
 
 // Verify Firebase ID Token
 export const verifyIdToken = async (token: string): Promise<admin.auth.DecodedIdToken> => {
@@ -81,4 +112,5 @@ export const listUsers = async (maxResults: number = 1000, pageToken?: string): 
   }
 };
 
+export { auth, firestore, storage };
 export default admin;

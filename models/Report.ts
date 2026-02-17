@@ -1,12 +1,20 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Document, Model, Query } from 'mongoose';
 import { IReport } from '@/types';
 
+// Interface for Report instance methods
+export interface IReportMethods {
+  assign(adminId: string): Promise<IReport & Document>;
+  resolve(action: string, notes: string, resolvedBy: string): Promise<IReport & Document>;
+  dismiss(notes: string, resolvedBy: string): Promise<IReport & Document>;
+  escalate(): Promise<IReport & Document>;
+}
+
 // Interface for Report static methods
-interface IReportStatics {
-  findByReporter(reporterId: string): Promise<(IReport & Document)[]>;
-  findByReported(reportedId: string): Promise<(IReport & Document)[]>;
-  findPending(): Promise<(IReport & Document)[]>;
-  findBySeverity(severity: string): Promise<(IReport & Document)[]>;
+export interface IReportStatics {
+  findByReporter(reporterId: string): any;
+  findByReported(reportedId: string): any;
+  findPending(): any;
+  findBySeverity(severity: string): any;
   getReportStats(): Promise<{
     total: number;
     pending: number;
@@ -18,10 +26,14 @@ interface IReportStatics {
   }>;
 }
 
-type ReportModel = Model<IReport & Document> & IReportStatics;
+// Document type with methods
+type ReportDocument = IReport & Document & IReportMethods;
+
+// Combined model type
+type ReportModel = Model<ReportDocument> & IReportStatics;
 
 // Report Schema
-const ReportSchema = new Schema<IReport & Document, ReportModel>({
+const ReportSchema = new Schema<any, ReportModel>({
   reporterId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -199,7 +211,8 @@ ReportSchema.methods.escalate = function() {
   return this.save();
 };
 
-const Report = (mongoose.models.Report as ReportModel) || 
-  mongoose.model<IReport & Document, ReportModel>('Report', ReportSchema);
+// Create or get the model with proper typing
+const Report: ReportModel = (mongoose.models.Report as ReportModel) || 
+  mongoose.model<ReportDocument>('Report', ReportSchema) as ReportModel;
 
 export default Report;

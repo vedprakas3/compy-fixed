@@ -1,8 +1,38 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 import { IChatRoom, IChatMessage } from '@/types';
 
+// Interface for ChatRoom static methods
+export interface IChatRoomStatics {
+  findByBooking(bookingId: string): any;
+  findByUser(userId: string): any;
+  findOrCreate(bookingId: string, participants: string[]): Promise<any>;
+}
+
+// Interface for ChatRoom instance methods
+export interface IChatRoomMethods {
+  addMessage(senderId: string, content: string, type?: string, fileUrl?: string): Promise<any>;
+  markAsRead(userId: string): Promise<void>;
+  getUnreadCount(userId: string): number;
+  archive(): Promise<any>;
+  block(): Promise<any>;
+}
+
+// Interface for ChatMessage static methods
+export interface IChatMessageStatics {
+  findByRoom(roomId: string, options?: any): any;
+  getUnreadMessages(roomId: string, userId: string): any;
+}
+
+// Document types
+type ChatRoomDocument = IChatRoom & Document & IChatRoomMethods;
+type ChatMessageDocument = IChatMessage & Document;
+
+// Model types
+type ChatRoomModel = Model<ChatRoomDocument> & IChatRoomStatics;
+type ChatMessageModel = Model<ChatMessageDocument> & IChatMessageStatics;
+
 // Chat Message Schema
-const ChatMessageSchema = new Schema<IChatMessage & Document>({
+const ChatMessageSchema = new Schema<any, ChatMessageModel>({
   roomId: {
     type: Schema.Types.ObjectId,
     ref: 'ChatRoom',
@@ -40,7 +70,7 @@ const ChatMessageSchema = new Schema<IChatMessage & Document>({
 });
 
 // Chat Room Schema
-const ChatRoomSchema = new Schema<IChatRoom & Document>({
+const ChatRoomSchema = new Schema<any, ChatRoomModel>({
   bookingId: {
     type: Schema.Types.ObjectId,
     ref: 'Booking',
@@ -198,7 +228,10 @@ ChatMessageSchema.statics.getUnreadMessages = function(roomId: string, userId: s
   }).sort({ createdAt: 1 });
 };
 
-const ChatRoom = mongoose.models.ChatRoom || mongoose.model<IChatRoom & Document>('ChatRoom', ChatRoomSchema);
-const ChatMessage = mongoose.models.ChatMessage || mongoose.model<IChatMessage & Document>('ChatMessage', ChatMessageSchema);
+// Create or get the models with proper typing
+const ChatRoom: ChatRoomModel = (mongoose.models.ChatRoom as ChatRoomModel) || 
+  mongoose.model<ChatRoomDocument, ChatRoomModel>('ChatRoom', ChatRoomSchema);
+const ChatMessage: ChatMessageModel = (mongoose.models.ChatMessage as ChatMessageModel) || 
+  mongoose.model<ChatMessageDocument, ChatMessageModel>('ChatMessage', ChatMessageSchema);
 
 export { ChatRoom, ChatMessage };

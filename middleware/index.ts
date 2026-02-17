@@ -6,8 +6,9 @@ export {
   withCompanion,
   withAdmin,
   withOptionalAuth,
-  AuthenticatedRequest,
 } from './auth';
+
+export type { AuthenticatedRequest } from './auth';
 
 export {
   rateLimit,

@@ -1,10 +1,24 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
-});
+const hasRazorpayConfig = process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET;
+
+let razorpay: Razorpay;
+
+if (hasRazorpayConfig) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID || '',
+    key_secret: process.env.RAZORPAY_KEY_SECRET || '',
+  });
+} else {
+  console.warn('Razorpay not initialized - missing environment variables');
+  // Create a mock object
+  razorpay = new Proxy({} as Razorpay, {
+    get() {
+      throw new Error('Razorpay not configured');
+    }
+  });
+}
 
 // Create order
 export const createOrder = async (
@@ -22,7 +36,7 @@ export const createOrder = async (
       payment_capture: 1, // Auto capture
     };
 
-    const order = await razorpay.orders.create(options);
+    const order = await razorpay.orders.create(options as any);
     return order;
   } catch (error) {
     console.error('Razorpay create order error:', error);
@@ -53,7 +67,7 @@ export const verifyPaymentSignature = (
 // Capture payment
 export const capturePayment = async (paymentId: string, amount: number): Promise<any> => {
   try {
-    const payment = await razorpay.payments.capture(paymentId, Math.round(amount * 100));
+    const payment = await razorpay.payments.capture(paymentId, Math.round(amount * 100), 'INR');
     return payment;
   } catch (error) {
     console.error('Razorpay capture payment error:', error);
@@ -150,7 +164,7 @@ export const createCustomer = async (
       name,
       email,
       contact,
-      notes,
+      notes: notes as any,
     });
     return customer;
   } catch (error) {
@@ -182,7 +196,7 @@ export const createLinkedAccount = async (accountData: {
   };
 }): Promise<any> => {
   try {
-    const account = await razorpay.accounts.create(accountData);
+    const account = await razorpay.accounts.create(accountData as any);
     return account;
   } catch (error) {
     console.error('Razorpay create linked account error:', error);

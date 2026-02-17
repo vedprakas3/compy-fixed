@@ -1,6 +1,30 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 import { ICompanion, IKYCDocument, IScheduleSlot, IExceptionDate } from '@/types';
 import slugify from 'slugify';
+
+// Interface for Companion instance methods
+export interface ICompanionMethods {
+  updateRating(): Promise<ICompanion & Document>;
+  incrementBookings(completed?: boolean): Promise<ICompanion & Document>;
+  addEarnings(amount: number): Promise<ICompanion & Document>;
+  isAvailableOn(date: Date): boolean;
+  submitKYC(documents: IKYCDocument[]): Promise<ICompanion & Document>;
+  approveKYC(verifiedBy: string): Promise<ICompanion & Document>;
+  rejectKYC(reason: string): Promise<ICompanion & Document>;
+}
+
+// Interface for Companion static methods
+export interface ICompanionStatics {
+  findBySlug(slug: string): any;
+  findByUserId(userId: string): any;
+  findApproved(filters?: any): any;
+}
+
+// Document type with methods
+type CompanionDocument = ICompanion & Document & ICompanionMethods;
+
+// Combined model type
+type CompanionModel = Model<CompanionDocument> & ICompanionStatics;
 
 // KYC Document Schema
 const KYCDocumentSchema = new Schema<IKYCDocument>({
@@ -64,7 +88,7 @@ const ExceptionDateSchema = new Schema<IExceptionDate>({
 });
 
 // Companion Schema
-const CompanionSchema = new Schema<ICompanion & Document>({
+const CompanionSchema = new Schema<any, CompanionModel>({
   userId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -234,7 +258,7 @@ CompanionSchema.index({ 'profile.interests': 1 });
 CompanionSchema.index({ slug: 'text', 'profile.about': 'text' });
 
 // Virtual for average earnings per booking
-CompanionSchema.virtual('avgEarningsPerBooking').get(function() {
+CompanionSchema.virtual('avgEarningsPerBooking').get(function(this: any) {
   if (this.stats.completedBookings === 0) return 0;
   return this.stats.totalEarnings / this.stats.completedBookings;
 });
@@ -358,6 +382,8 @@ CompanionSchema.methods.rejectKYC = function(reason: string) {
   return this.save();
 };
 
-const Companion = mongoose.models.Companion || mongoose.model<ICompanion & Document>('Companion', CompanionSchema);
+// Create or get the model with proper typing
+const Companion: CompanionModel = (mongoose.models.Companion as CompanionModel) || 
+  mongoose.model<CompanionDocument, CompanionModel>('Companion', CompanionSchema);
 
 export default Companion;

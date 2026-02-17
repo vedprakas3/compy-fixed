@@ -1,10 +1,17 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Document, Model, Query } from 'mongoose';
 import { IWithdrawal } from '@/types';
 
+// Interface for Withdrawal instance methods
+export interface IWithdrawalMethods {
+  process(processedBy: string, transactionReference: string): Promise<IWithdrawal & Document>;
+  reject(reason: string, processedBy: string): Promise<IWithdrawal & Document>;
+  startProcessing(): Promise<IWithdrawal & Document>;
+}
+
 // Interface for Withdrawal static methods
-interface IWithdrawalStatics {
-  findByUser(userId: string, filters?: any): Promise<(IWithdrawal & Document)[]>;
-  findPending(): Promise<(IWithdrawal & Document)[]>;
+export interface IWithdrawalStatics {
+  findByUser(userId: string, filters?: any): any;
+  findPending(): any;
   getTotalWithdrawn(userId: string): Promise<number>;
   getWithdrawalStats(): Promise<{
     total: number;
@@ -17,10 +24,14 @@ interface IWithdrawalStatics {
   }>;
 }
 
-type WithdrawalModel = Model<IWithdrawal & Document> & IWithdrawalStatics;
+// Document type with methods
+type WithdrawalDocument = IWithdrawal & Document & IWithdrawalMethods;
+
+// Combined model type
+type WithdrawalModel = Model<WithdrawalDocument> & IWithdrawalStatics;
 
 // Withdrawal Schema
-const WithdrawalSchema = new Schema<IWithdrawal & Document, WithdrawalModel>({
+const WithdrawalSchema = new Schema<any, WithdrawalModel>({
   userId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -169,7 +180,8 @@ WithdrawalSchema.methods.startProcessing = function() {
   return this.save();
 };
 
-const Withdrawal = (mongoose.models.Withdrawal as WithdrawalModel) || 
-  mongoose.model<IWithdrawal & Document, WithdrawalModel>('Withdrawal', WithdrawalSchema);
+// Create or get the model with proper typing
+const Withdrawal: WithdrawalModel = (mongoose.models.Withdrawal as WithdrawalModel) || 
+  mongoose.model<WithdrawalDocument>('Withdrawal', WithdrawalSchema) as WithdrawalModel;
 
 export default Withdrawal;

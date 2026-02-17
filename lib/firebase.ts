@@ -25,31 +25,49 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
+// Check if Firebase config is valid
+const hasFirebaseConfig = firebaseConfig.apiKey && firebaseConfig.projectId;
+
 // Initialize Firebase
 let firebaseApp: FirebaseApp;
+let auth: any;
+let googleProvider: any;
+let facebookProvider: any;
+let twitterProvider: any;
 
-if (!getApps().length) {
-  firebaseApp = initializeApp(firebaseConfig);
+if (hasFirebaseConfig) {
+  if (!getApps().length) {
+    firebaseApp = initializeApp(firebaseConfig);
+  } else {
+    firebaseApp = getApps()[0];
+  }
+
+  auth = getAuth(firebaseApp);
+  googleProvider = new GoogleAuthProvider();
+  facebookProvider = new FacebookAuthProvider();
+  twitterProvider = new TwitterAuthProvider();
+
+  // Configure providers
+  googleProvider.setCustomParameters({
+    prompt: 'select_account'
+  });
+
+  facebookProvider.setCustomParameters({
+    display: 'popup'
+  });
 } else {
-  firebaseApp = getApps()[0];
+  console.warn('Firebase client SDK not initialized - missing environment variables');
+  // Create mock implementations
+  firebaseApp = {} as FirebaseApp;
+  auth = {};
+  googleProvider = {};
+  facebookProvider = {};
+  twitterProvider = {};
 }
-
-export const auth = getAuth(firebaseApp);
-export const googleProvider = new GoogleAuthProvider();
-export const facebookProvider = new FacebookAuthProvider();
-export const twitterProvider = new TwitterAuthProvider();
-
-// Configure providers
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
-});
-
-facebookProvider.setCustomParameters({
-  display: 'popup'
-});
 
 // Auth helper functions
 export const signInWithGoogle = async () => {
+  if (!hasFirebaseConfig) return { user: null, error: 'Firebase not configured' };
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return { user: result.user, error: null };
@@ -59,6 +77,7 @@ export const signInWithGoogle = async () => {
 };
 
 export const signInWithFacebook = async () => {
+  if (!hasFirebaseConfig) return { user: null, error: 'Firebase not configured' };
   try {
     const result = await signInWithPopup(auth, facebookProvider);
     return { user: result.user, error: null };
@@ -68,6 +87,7 @@ export const signInWithFacebook = async () => {
 };
 
 export const signInWithEmail = async (email: string, password: string) => {
+  if (!hasFirebaseConfig) return { user: null, error: 'Firebase not configured' };
   try {
     const result = await signInWithEmailAndPassword(auth, email, password);
     return { user: result.user, error: null };
@@ -77,6 +97,7 @@ export const signInWithEmail = async (email: string, password: string) => {
 };
 
 export const signUpWithEmail = async (email: string, password: string, displayName: string) => {
+  if (!hasFirebaseConfig) return { user: null, error: 'Firebase not configured' };
   try {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(result.user, { displayName });
@@ -87,6 +108,7 @@ export const signUpWithEmail = async (email: string, password: string, displayNa
 };
 
 export const logoutUser = async () => {
+  if (!hasFirebaseConfig) return { error: 'Firebase not configured' };
   try {
     await signOut(auth);
     return { error: null };
@@ -96,6 +118,7 @@ export const logoutUser = async () => {
 };
 
 export const resetPassword = async (email: string) => {
+  if (!hasFirebaseConfig) return { error: 'Firebase not configured' };
   try {
     await sendPasswordResetEmail(auth, email);
     return { error: null };
@@ -105,6 +128,7 @@ export const resetPassword = async (email: string) => {
 };
 
 export const getCurrentUser = (): Promise<FirebaseUser | null> => {
+  if (!hasFirebaseConfig) return Promise.resolve(null);
   return new Promise((resolve) => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       unsubscribe();
@@ -114,7 +138,9 @@ export const getCurrentUser = (): Promise<FirebaseUser | null> => {
 };
 
 export const getIdToken = async (user: FirebaseUser): Promise<string> => {
+  if (!hasFirebaseConfig) return '';
   return await user.getIdToken(true);
 };
 
+export { auth, googleProvider, facebookProvider, twitterProvider };
 export default firebaseApp;
